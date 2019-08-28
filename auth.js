@@ -11,6 +11,7 @@ const mybatis = require('./dao/mybatis')
 const final = require('./final')
 
 const namespace = 'user'
+const timePossibleWait = 900000
 
 router.post('/join', (req, res) => {
   const upw = req.body.upw
@@ -48,8 +49,8 @@ router.post('/join', (req, res) => {
   });
 })
 
-router.post('/login', (req, res, next) => {
-    passport.authenticate("local", {session: false}, (err, user, info) => {
+router.post('/login', async (req, res, next) => {
+    passport.authenticate("local", {session: false}, async (err, user, info) => {
       if (err) {
         var result = next(err);
         console.log(`err result : ${result}`)
@@ -58,16 +59,41 @@ router.post('/login', (req, res, next) => {
   
       if (!user) {
         console.log(`!user : ${user}`)
-        return res.json({status: info.status, msg: '비'});
+        return res.json({status: info.status});
       }
   
-      req.login(user, {session: false}, err => {
+      req.login(user, {session: false}, async err => {
         if(err) {
           return res.json({status: 0});
         }
-  
+        
+        //토큰 발행
         const token = jwt.sign(user, final.SECRET_KEY);
-        //DB에 token값 저장
+
+        //i_user값으로 등록된 token이 있는지 확인
+        let param = {
+          i_user: user.i_user,
+          token: token
+        }
+
+        const tokenResult = await mybatis.query(namespace, 'getToken', param)
+        if(tokenResult.length == 0) {
+          await mybatis.query(namespace, 'regToken', param)
+
+        } else {
+          const tokenData = tokenResult[0]
+          const useDatetime = new Date(tokenData.use_datetime) //마지막 사용시간
+          const now = new Date(); //현재시간
+          const gap = now.getTime() - useDatetime.getTime()
+
+          if(gap > timePossibleWait) { //마지막 사용 후 15분 경과
+            await mybatis.query(namespace, 'modToken', param)
+          } else {
+            console.log('다중 로그인 시도')
+            return res.json({status: 3})
+          }
+        }
+
         console.log('token : ' + token)
         return res.json({status: info.status, user, token});
       });

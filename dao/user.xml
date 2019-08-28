@@ -11,4 +11,29 @@
     <select id="getUser">
         SELECT * FROM t_user WHERE uid = #{uid}
     </select>
+
+    <select id="getToken">
+        SELECT * FROM t_token
+        WHERE i_user = ${i_user}
+    </select>
+
+    <insert id="regToken">
+        INSERT INTO t_token
+        (i_user, token)
+        VALUES
+        (${i_user}, #{token})
+    </insert>
+
+    <update id="modToken">
+        UPDATE t_token
+        SET use_datetime = now()
+        <if test="token != null and token != ''">
+            , token = #{token}
+        </if>
+        WHERE i_user = ${i_user}
+    </update>
+
+    <delete id="delToken">
+        DELETE FROM t_token WHERE i_user = ${i_user}
+    </delete>
 </mapper>

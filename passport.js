@@ -12,6 +12,8 @@ const hasher = bkfd2Password();
 const mybatis = require('./dao/mybatis')
 const namespace = 'user'
 
+//status
+//0: 아이디 없음, 1: 로그인 성공, 2:비번 틀림
 passport.use(new LocalStrategy({
     usernameField: 'uid',
     passwordField: 'upw',
@@ -25,7 +27,7 @@ passport.use(new LocalStrategy({
     const dbUser = await mybatis.query(namespace, 'getUser', params)
     console.log('dbUser : ' + dbUser)
 
-    console.log("dbUser == '' : " + (dbUser === ''))
+    console.log("dbUser == '' : " + (dbUser == ''))
     console.log("dbUser == null : " + (dbUser == null))
     console.log("dbUser == undefined : " + (dbUser == undefined))
 
@@ -33,7 +35,6 @@ passport.use(new LocalStrategy({
     if(dbUser == '') {
       return done(null, false, {status: 0, message: 'Incorrect id'})
     }
-
    
     const db = dbUser[0]
     hasher({password: upw, salt: db.salt}, (err, pass, salt, hash) => {
@@ -44,9 +45,10 @@ passport.use(new LocalStrategy({
       if(hash === db.upw) {
         console.log('비번 맞음!!!!')
         const user = {
+          i_user: db.i_user,
           nick_nm : db.nick_nm
         }
-        return done(null, user, {status: 1, message: 'Logged In Successfully'})
+        return done(null, user, {status: 1})
 
       } else {
         console.log('비번 틀림!!!!')
@@ -69,9 +71,8 @@ passport.use(new JWTStrategy({
       name: 'hahaha'
     }
   
-    if(result) {
+   
       return cb(null, user)
-    } else {
-      return cb('err')
-    }
-  }));
+    
+  })
+);
