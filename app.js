@@ -44,7 +44,7 @@ app.use(function(err, req, res, next) {
 });
 
 app.listen(8899, function() {
-  console.log('서버 실행 완료!!');
+  console.log('서버 실행 완료!! port : 8899');
 });
 
 module.exports = app;

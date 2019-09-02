@@ -100,13 +100,14 @@ router.post('/login', async (req, res, next) => {
   });
   
   //로그아웃
-  router.get('/logout', function(req, res) {
-    const token = req.body.token
+  router.post('/logout', async function(req, res) {
+    const param = {
+      i_user : req.body.i_user
+    }
     req.logout();
-    console.log("logged out")
-    var result = res.send()
-    console.log(`로그아웃 result : ${result}`)
-    return result;
+    console.log("logged out : " + param.i_user)
+    await mybatis.query(namespace, 'delToken', param)
+    res.json(1);
   });
 
   module.exports = router
