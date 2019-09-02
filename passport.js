@@ -5,12 +5,15 @@ const ExtractJWT = passportJWT.ExtractJwt;
 const LocalStrategy = require('passport-local').Strategy;
 const JWTStrategy   = passportJWT.Strategy;
 const final = require('./final')
+const utils = require('./utils')
 
 const bkfd2Password = require('pbkdf2-password');
 const hasher = bkfd2Password();
 
 const mybatis = require('./dao/mybatis')
 const namespace = 'user'
+
+
 
 //status
 //0: 아이디 없음, 1: 로그인 성공, 2:비번 틀림
@@ -61,18 +64,27 @@ passport.use(new LocalStrategy({
 passport.use(new JWTStrategy({
     jwtFromRequest: ExtractJWT.fromAuthHeaderAsBearerToken(),
     secretOrKey   : final.SECRET_KEY
-  }, function (jwtPayload, cb) {
+  }, async function (jwtPayload, done) {
   
-    console.log(`jwtPayload.name : ${jwtPayload.name}`)
-  
-    var result = jwtPayload.name === 'hahaha'
-  
-    var user = {
-      name: 'hahaha'
+    console.log('jwtPayload.i_user : ' + jwtPayload.i_user)
+    const params = {
+      i_user: jwtPayload.i_user
     }
-  
-   
-      return cb(null, user)
+    const dbToken = await mybatis.query(namespace, 'getToken', params)
+
+    console.log('dbToken.length : ' + dbToken.length)
+    if(dbToken.length == 0) { //토큰 갈취 의심 (사용 X)
+      return done(null, false)
+    }
     
+    const db = dbToken[0]
+    console.log('utils.isFinishLogin(db.use_datetime) : ' + utils.isFinishLogin(db.use_datetime))
+    if(utils.isFinishLogin(db.use_datetime)) { //로긴 유지시간을 오버한 경우 (사용 X)
+      return done(null, false)
+    }
+
+    await mybatis.query(namespace, 'modToken', params) //use_datetime 최신화
+
+    return done(null, jwtPayload)
   })
 );

@@ -9,9 +9,13 @@ const hasher = bkfd2Password();
 
 const mybatis = require('./dao/mybatis')
 const final = require('./final')
-
+const utils = require('./utils')
 const namespace = 'user'
-const timePossibleWait = 900000
+
+
+router.get('/test', (req, res) => {
+  res.json(10)
+})
 
 router.post('/join', (req, res) => {
   const upw = req.body.upw
@@ -77,16 +81,11 @@ router.post('/login', async (req, res, next) => {
         }
 
         const tokenResult = await mybatis.query(namespace, 'getToken', param)
-        if(tokenResult.length == 0) {
+        if(tokenResult.length == 0) { //등록된 토큰이 없다면 새로 등록
           await mybatis.query(namespace, 'regToken', param)
 
         } else {
-          const tokenData = tokenResult[0]
-          const useDatetime = new Date(tokenData.use_datetime) //마지막 사용시간
-          const now = new Date(); //현재시간
-          const gap = now.getTime() - useDatetime.getTime()
-
-          if(gap > timePossibleWait) { //마지막 사용 후 15분 경과
+          if(utils.isFinishLogin(tokenResult[0].use_datetime)) { //로그인 유지 시간 지났음
             await mybatis.query(namespace, 'modToken', param)
           } else {
             console.log('다중 로그인 시도')
@@ -102,6 +101,7 @@ router.post('/login', async (req, res, next) => {
   
   //로그아웃
   router.get('/logout', function(req, res) {
+    const token = req.body.token
     req.logout();
     console.log("logged out")
     var result = res.send()
