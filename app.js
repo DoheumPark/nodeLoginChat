@@ -1,5 +1,7 @@
 var createError = require('http-errors');
+
 var express = require('express');
+
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
@@ -27,6 +29,8 @@ app.use('/', indexRouter);
 app.use('/auth', auth);
 app.use('/users', passport.authenticate('jwt', {session: false}), usersRouter);
 
+
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
@@ -43,8 +47,19 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-app.listen(8899, function() {
+const server = app.listen(8899, function() {
   console.log('서버 실행 완료!! port : 8899');
 });
 
-module.exports = app;
+//-------------------------------------- IO
+var io = require('socket.io')(server);
+
+io.on('connection', function(socket){
+  console.log('connection!!!');
+})
+
+io.on('test', function(socket) {
+  
+  console.log('test!!!');
+  //console.log(socket)
+})
