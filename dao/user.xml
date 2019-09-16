@@ -36,4 +36,16 @@
     <delete id="delToken">
         DELETE FROM t_token WHERE i_user = ${i_user}
     </delete>
+
+    <!-- 로그인 유저 -->
+    <delete id="delLoginUser">
+        DELETE FROM t_loginUser WHERE i_user = ${i_user}
+    </delete>
+
+    <insert id="regLoginUser">
+        INSERT INTO t_loginUser
+        (i_user, nick_nm, socket_id)
+        VALUES
+        (${i_user}, #{nick_nm}, #{socket_id})
+    </insert>
 </mapper>
