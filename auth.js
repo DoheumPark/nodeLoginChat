@@ -107,6 +107,7 @@ router.post('/login', async (req, res, next) => {
     req.logout();
     console.log("logged out : " + param.i_user)
     await mybatis.query(namespace, 'delToken', param)
+    await mybatis.query(namespace, 'delLoginUser', param)
     res.json(1);
   });
 

@@ -38,14 +38,26 @@
     </delete>
 
     <!-- 로그인 유저 -->
-    <delete id="delLoginUser">
-        DELETE FROM t_loginUser WHERE i_user = ${i_user}
-    </delete>
-
     <insert id="regLoginUser">
         INSERT INTO t_loginUser
         (i_user, nick_nm, socket_id)
         VALUES
         (${i_user}, #{nick_nm}, #{socket_id})
     </insert>
+
+    <select id="getLoginUserList">
+        SELECT socket_id, nick_nm FROM t_loginUser WHERE i_user != ${i_user}
+    </select>
+
+    <delete id="delLoginUser">
+        DELETE FROM t_loginUser 
+        <where>
+            <if test="i_user != null and i_user !=''">
+                i_user = ${i_user}
+            </if>
+            <if test="socket_id != null and socket_id !=''">
+                AND socket_id = #{socket_id}
+            </if>
+        </where>
+    </delete>
 </mapper>

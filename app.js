@@ -58,17 +58,28 @@ var io = require('socket.io')(server);
 io.on('connection', function(socket){
   console.log('connection!!!')
 
+  socket.on('disconnect', async function(){
+    console.log('disconnect socket.loginUser : ' + socket.id)
+    console.log('user disconnected');
+
+    const param = {
+      socket_id: socket.id
+    }
+
+    await mybatis.query(namespace, 'delLoginUser', param).catch(err => {
+      console.log('delLoginUser err : ' + err)
+      socket.broadcast.emit('somebodyLogout', socket.id)
+    })
+  });
+
+  io.clients((error, clients) => {
+    console.log('clients : ' + clients)
+  })
+
   socket.on('login', async function(data) {
     console.log(' ------ login ---- ')
     console.log('data.i_user : ' + data.i_user)
     console.log('data.nick_nm : ' + data.nick_nm)
-    
-    
-    socket.loginUser = data
-
-    io.clients((error, clients) => {
-      console.log('clients : ' + clients)
-    })
 
     const param = {
       i_user: data.i_user,
@@ -76,20 +87,19 @@ io.on('connection', function(socket){
       socket_id: socket.id
     }
 
-    await mybatis.query(namespace, 'delLoginUser', param).catch(err => {
-      console.log('delLoginUser err : ' + err)
-    })
     mybatis.query(namespace, 'regLoginUser', param).then(result => {
       console.log('result : ' + result)
-      socket.broadcast.emit('somebodyLogin', data)
+      const passData = {
+        nick_nm: param.nick_nm,
+        socket_id: param.socket_id
+      }
+      socket.broadcast.emit('somebodyLogin', passData)
     }).catch(err => {
       console.log('regLoginUser err : ' + err)
     })
   })
 
-  socket.on('disconnect', function(){
-    console.log('user disconnected');
-  });
+  
   
   socket.on('chatMessage', function(msg){
       console.log('message: ' + msg);
