@@ -55,25 +55,69 @@ const server = app.listen(8899, function() {
 //-------------------------------------- IO
 var io = require('socket.io')(server);
 
+function logout(socket) { //로그아웃
+  console.log('user logout!!');
+
+  const param = {
+    socket_id: socket.id
+  }
+
+  mybatis.query(namespace, 'delLoginUser', param)
+  .then(data => {
+    socket.broadcast.emit('somebodyLogout', socket.id)
+  })
+  .catch(err => {
+    console.log('delLoginUser err : ' + err)
+  })
+}
+
+async function quitRoom(data, socket) { //방나가기
+  console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+  console.log('leaveChatRoom - i_chatroom : ' + data.i_chatroom)
+  console.log('leaveChatRoom - i_user : ' + data.i_user)
+  console.log('leaveChatRoom - socket.id : ' + socket.id)
+  
+  if(data.i_user == undefined) {
+    return
+  }
+
+  socket.leave(data.i_chatroom)
+
+  await mybatis.query(namespace, 'delChatRoomUser', data)
+
+  if(io.sockets.adapter.rooms[data.i_chatroom] == undefined) { //DB에서 방 레코드 삭제
+    mybatis.query(namespace, 'delChatRoom', data).then(result => {
+      io.emit('destroyChatRoom', data.i_chatroom);
+    }).catch(err => {
+      console.log('delChatRoom err : ' + err)
+    })
+  } else {
+    io.to(data.i_chatroom).emit('somebodyOut', data)
+  }
+}
+
+
 io.on('connection', function(socket){
   console.log('connection!!!')
 
-  socket.on('disconnect', async function(){
-    console.log('disconnect socket.loginUser : ' + socket.id)
-    console.log('user disconnected');
-
+  socket.on('disconnect', async function() {
+    console.log('disconnect : ' + socket.id)
     const param = {
       socket_id: socket.id
     }
-
-    await mybatis.query(namespace, 'delLoginUser', param).catch(err => {
-      console.log('delLoginUser err : ' + err)
-      socket.broadcast.emit('somebodyLogout', socket.id)
-    })
+    const result = await mybatis.query(namespace, 'getQuitRoomInfo', param)
+    if(result != undefined && result.length > 0) {
+      const data = {
+        i_user: result[0].i_user,
+        i_chatroom: result[0].i_chatroom
+      }
+      quitRoom(data, socket)
+    }
+    logout(socket)
   });
 
-  io.clients((error, clients) => {
-    console.log('clients : ' + clients)
+  socket.on('logout', async function() {
+    logout(socket)
   })
 
   socket.on('login', async function(data) {
@@ -89,22 +133,55 @@ io.on('connection', function(socket){
 
     mybatis.query(namespace, 'regLoginUser', param).then(result => {
       console.log('result : ' + result)
-      const passData = {
-        nick_nm: param.nick_nm,
-        socket_id: param.socket_id
-      }
-      socket.broadcast.emit('somebodyLogin', passData)
+      socket.broadcast.emit('somebodyLogin', param)
     }).catch(err => {
       console.log('regLoginUser err : ' + err)
     })
   })
 
-  
-  
-  socket.on('chatMessage', function(msg){
-      console.log('message: ' + msg);
-      io.emit('chatMessage', msg);
-  });
+  //방 만들기
+  socket.on('createChatRoom', function(data) {
+    console.log('createChatRoom - data : ' + data.i_chatroom)
+    socket.join(data.i_chatroom)
+    socket.broadcast.emit('createChatRoom', data);
+  })
+
+  //방 입장
+  socket.on('joinChatRoom', function(data) {
+
+    const param = {
+      i_user: data.i_user,
+      nick_nm: data.nick_nm
+    }
+    io.to(data.i_chatroom).emit('somebodyJoin', param)
+
+    console.log('joinChatRoom - data : ' + data.i_chatroom)
+    socket.join(data.i_chatroom)
+  })
+
+  //방 나가기
+  socket.on('leaveChatRoom', async function(data) {
+    console.log('------------------ leaveChatRoom ---------')
+    quitRoom(data, socket)
+  })
+
+  socket.on('sendMsg', function(data){
+      console.log('i_chatroom: ' + data.i_chatroom);
+      console.log('sended_nm: ' + data.sended_nm);
+      console.log('content: ' + data.content);
+
+      const param = {
+        sended_nm: data.sended_nm,
+        content: data.content
+      }
+
+      io.to(data.i_chatroom).emit('sendMsg', param)
+  })
+
+  socket.on('checkRoom', function(i_chatroom) {
+    console.log(' -- checkRoom -- ')
+    console.log(io.sockets.adapter.rooms[i_chatroom])
+  })
 })
 
 // 접속된 모든 클라이언트에게 메시지를 전송한다
@@ -118,9 +195,3 @@ io.on('connection', function(socket){
 
 // 특정 클라이언트에게만 메시지를 전송한다
 //io.to(id).emit('event_name', data);
-
-io.on('test', function(socket) {
-  
-  console.log('test!!!');
-  //console.log(socket)
-})

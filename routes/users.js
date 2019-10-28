@@ -16,11 +16,71 @@ router.get('/getLoginUserList', async function(req, res) {
   })
 })
 
-/* GET users listing. */
-router.get('/myinfo', function(req, res) {
+router.post('/regChatRoom', async function(req, res) {
   
-  console.log('req.user.name : ' + req.user.name);
-  res.json('ddd')
+  const param = {
+    title: req.body.title,
+    maxmember: req.body.maxmember,
+    createuser: req.user.i_user
+  }
+
+  if(param.maxmember < 2) {
+    res.json(-1)
+    return
+  }
+
+  const dbResult = await mybatis.query(namespace, 'regChatRoom', param)
+
+  const param2 = {
+    i_user: req.user.i_user,
+    nick_nm: req.user.nick_nm,
+    i_chatroom: dbResult.insertId
+  }
+
+  await regChatRoomUser(param2)
+
+  res.json(dbResult.insertId)
 });
 
+router.get('/getChatRoomList', function(req, res) {
+  mybatis.query(namespace, 'getChatRoomList').then(data => {
+    res.json(data)
+  }).catch(err => {
+    res.json({})
+    console.log('getChatRoomList - err : ' + err)
+  })
+})
+
+router.post('/regChatRoomUser', async function(req, res) {
+  const param = {
+    i_user: req.user.i_user,
+    nick_nm: req.user.nick_nm,
+    i_chatroom: req.body.i_chatroom
+  }
+  const restCnt = await mybatis.query(namespace, 'getRoomRestMemberCnt', param) 
+
+  if(restCnt[0].restCnt == 0) {
+    res.json({state: 0})
+  } else {
+    const data = await regChatRoomUser(param)
+    res.json({state: 1})
+  }
+})
+
+async function regChatRoomUser(param) {
+  return mybatis.query(namespace, 'regChatRoomUser', param).then(data => {
+    return data
+  }).catch(err => {
+    console.log('regChatRoomUser - err : ' + err)
+    return {}
+  })
+}
+
+router.get('/getChatRoomUserList', async function(req, res) {
+  const param = {
+    i_chatroom: req.query['i_chatroom']
+  }
+  const result = await mybatis.query(namespace, 'getChatRoomUserList', param)
+  res.json(result)
+})
 module.exports = router;

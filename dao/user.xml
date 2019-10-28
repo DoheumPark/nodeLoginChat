@@ -1,41 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="user"> 
+
+    <!-- ///////////////////////////////////////////////   INSERT //////////-->
     <insert id="join">
         INSERT INTO t_user
         (uid, upw, salt, nick_nm)
         VALUES
         (#{uid}, #{upw}, #{salt}, #{nick_nm})
     </insert>
-
-    <select id="getUser">
-        SELECT * FROM t_user WHERE uid = #{uid}
-    </select>
-
-    <select id="getToken">
-        SELECT * FROM t_token
-        WHERE i_user = ${i_user}
-    </select>
-
+    
     <insert id="regToken">
         INSERT INTO t_token
         (i_user, token)
         VALUES
         (${i_user}, #{token})
     </insert>
-
-    <update id="modToken">
-        UPDATE t_token
-        SET use_datetime = now()
-        <if test="token != null and token != ''">
-            , token = #{token}
-        </if>
-        WHERE i_user = ${i_user}
-    </update>
-
-    <delete id="delToken">
-        DELETE FROM t_token WHERE i_user = ${i_user}
-    </delete>
 
     <!-- 로그인 유저 -->
     <insert id="regLoginUser">
@@ -45,9 +25,78 @@
         (${i_user}, #{nick_nm}, #{socket_id})
     </insert>
 
-    <select id="getLoginUserList">
-        SELECT socket_id, nick_nm FROM t_loginUser WHERE i_user != ${i_user}
+    <!-- 채팅룸 -->
+    <insert id="regChatRoom">
+        INSERT INTO t_chatroom
+        (title, maxmember, createuser)
+        VALUES
+        (#{title}, ${maxmember}, ${createuser})
+    </insert>
+
+    <insert id="regChatRoomUser">
+        INSERT INTO t_chatroom_user
+        (i_user, i_chatroom, nick_nm)
+        VALUES
+        (${i_user}, ${i_chatroom}, #{nick_nm})
+    </insert>
+
+    <!-- ///////////////////////////////////////////////   SELECT //////////-->
+    <select id="getUser">
+        SELECT * FROM t_user WHERE uid = #{uid}
     </select>
+
+    <select id="getToken">
+        SELECT * FROM t_token
+        WHERE i_user = ${i_user}
+    </select>
+
+    <select id="getLoginUserList">
+        SELECT i_user, socket_id, nick_nm FROM t_loginUser WHERE i_user != ${i_user}
+    </select>
+
+    <select id="getChatRoomList">
+        SELECT
+            A.i_chatroom, A.title, A.maxmember, A.r_date, B.nick_nm
+        FROM t_chatroom A
+        INNER JOIN t_user B
+        ON A.createuser = B.i_user 
+    </select>
+
+    <select id="getRoomRestMemberCnt">
+        SELECT (B.maxmember - COUNT(A.i_chatroom)) AS restCnt
+        FROM t_chatroom_user AS A
+        INNER JOIN t_chatroom AS B
+        ON B.i_chatroom = A.i_chatroom
+        WHERE A.i_chatroom = ${i_chatroom}
+    </select>
+
+    <select id="getChatRoomUserList">
+        SELECT * FROM t_chatroom_user
+        WHERE i_chatroom = ${i_chatroom}
+    </select>
+
+    <select id="getQuitRoomInfo">
+        SELECT A.i_user, B.i_chatroom
+        FROM t_loginUser A
+        INNER JOIN t_chatroom_user B
+        ON A.i_user = B.i_user
+        WHERE A.socket_id = #{socket_id}
+    </select>
+
+    <!-- ///////////////////////////////////////////////   UPDATE //////////-->
+    <update id="modToken">
+        UPDATE t_token
+        SET use_datetime = now()
+        <if test="token != null and token != ''">
+            , token = #{token}
+        </if>
+        WHERE i_user = ${i_user}
+    </update>
+
+    <!-- ///////////////////////////////////////////////   DELETE //////////-->
+    <delete id="delToken">
+        DELETE FROM t_token WHERE i_user = ${i_user}
+    </delete>
 
     <delete id="delLoginUser">
         DELETE FROM t_loginUser 
@@ -60,4 +109,14 @@
             </if>
         </where>
     </delete>
+
+    <delete id="delChatRoom">
+        DELETE FROM t_chatroom WHERE i_chatroom = ${i_chatroom}
+    </delete>
+
+    <delete id="delChatRoomUser">
+        DELETE FROM t_chatroom_user WHERE i_user = ${i_user}
+    </delete>
+
+
 </mapper>
